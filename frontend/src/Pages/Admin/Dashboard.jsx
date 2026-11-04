@@ -1,8 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FaEdit, FaPlus, FaSearch, FaStar, FaTrash } from "react-icons/fa";
+import {
+  FaCheck,
+  FaEdit,
+  FaPlus,
+  FaSearch,
+  FaStar,
+  FaTrash,
+  FaUndo,
+} from "react-icons/fa";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import { reviewAPI } from "../../services/api";
+import { resizeImage } from "../../utils/resizeImage";
 
 const MySwal = withReactContent(Swal);
 
@@ -12,6 +21,7 @@ const EMPTY_FORM = {
   course: "",
   comment: "",
   rating: 5,
+  photo: "",
 };
 
 const inputClass =
@@ -25,6 +35,7 @@ const Dashboard = () => {
   const [editingReview, setEditingReview] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [photoError, setPhotoError] = useState("");
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
@@ -60,7 +71,7 @@ const Dashboard = () => {
   const startAdd = () => {
     setEditingReview(null);
     setForm(EMPTY_FORM);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   };
 
   const startEdit = (review) => {
@@ -71,13 +82,27 @@ const Dashboard = () => {
       course: review.course,
       comment: review.comment,
       rating: review.rating,
+      photo: review.photo || "",
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   };
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handlePhotoChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setPhotoError("");
+    try {
+      const photo = await resizeImage(file);
+      setForm((current) => ({ ...current, photo }));
+    } catch (error) {
+      setPhotoError(error.message);
+      event.target.value = "";
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -123,6 +148,28 @@ const Dashboard = () => {
     }
   };
 
+  const handleApproval = async (review) => {
+    const status = review.status === "approved" ? "pending" : "approved";
+    try {
+      const response = await reviewAPI.setStatus(review.id, status);
+      setReviews((current) =>
+        current.map((item) =>
+          item.id === review.id ? response.data.review : item,
+        ),
+      );
+    } catch (statusError) {
+      MySwal.fire({
+        title: "Could Not Update Review",
+        text:
+          statusError?.response?.data?.message ||
+          statusError.message ||
+          "Please try again.",
+        icon: "error",
+        confirmButtonColor: "#0B1F3A",
+      });
+    }
+  };
+
   const handleDelete = async (review) => {
     const result = await MySwal.fire({
       title: "Delete this review?",
@@ -162,8 +209,8 @@ const Dashboard = () => {
             Student Reviews
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Add, edit, and remove the reviews displayed on the home page.
-            Changes are saved in this browser.
+            Review student submissions, approve them for publication, or hide
+            them from the home page. Changes are saved in this browser.
           </p>
         </div>
         <div className="rounded-xl bg-[#FFF7E8] px-4 py-3 text-sm font-semibold text-[#7A4A12]">
@@ -254,6 +301,34 @@ const Dashboard = () => {
           />
         </label>
 
+        <div>
+          <label
+            className="block text-sm font-semibold text-gray-700"
+            htmlFor="admin-review-photo"
+          >
+            Student picture (optional)
+          </label>
+          <input
+            id="admin-review-photo"
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoChange}
+            className={`${inputClass} mt-1 font-normal`}
+          />
+          {photoError && (
+            <p className="mt-1 text-sm text-red-700" role="alert">
+              {photoError}
+            </p>
+          )}
+          {form.photo && (
+            <img
+              src={form.photo}
+              alt="Review profile preview"
+              className="mt-2 h-14 w-14 rounded-full object-cover"
+            />
+          )}
+        </div>
+
         <button
           type="submit"
           disabled={saving}
@@ -311,26 +386,56 @@ const Dashboard = () => {
                 key={review.id}
                 className="p-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <h3 className="font-bold text-[#0B1F3A]">{review.name}</h3>
-                    <span
-                      className="flex items-center gap-1 text-[#F5A623]"
-                      aria-label={`${review.rating} out of 5 stars`}
-                    >
-                      {Array.from({ length: review.rating }, (_, index) => (
-                        <FaStar key={index} size={12} />
-                      ))}
-                    </span>
+                <div className="flex min-w-0 items-start gap-3">
+                  <img
+                    src={review.photo || "/student-avatar.svg"}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-full object-cover"
+                  />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <h3 className="font-bold text-[#0B1F3A]">{review.name}</h3>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                          review.status === "approved"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {review.status === "approved"
+                          ? "Approved"
+                          : "Pending approval"}
+                      </span>
+                      <span
+                        className="flex items-center gap-1 text-[#F5A623]"
+                        aria-label={`${review.rating} out of 5 stars`}
+                      >
+                        {Array.from({ length: review.rating }, (_, index) => (
+                          <FaStar key={index} size={12} />
+                        ))}
+                      </span>
+                    </div>
+                    <p className="text-sm text-[#3B5378] mt-1">
+                      {review.university} · {review.course}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-3 whitespace-pre-wrap break-words">
+                      {review.comment}
+                    </p>
                   </div>
-                  <p className="text-sm text-[#3B5378] mt-1">
-                    {review.university} · {review.course}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-3 whitespace-pre-wrap break-words">
-                    {review.comment}
-                  </p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleApproval(review)}
+                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                      review.status === "approved"
+                        ? "border-amber-200 text-amber-800 hover:bg-amber-50"
+                        : "border-green-200 text-green-800 hover:bg-green-50"
+                    }`}
+                  >
+                    {review.status === "approved" ? <FaUndo /> : <FaCheck />}
+                    {review.status === "approved" ? "Unpublish" : "Approve"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => startEdit(review)}

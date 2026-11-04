@@ -24,7 +24,7 @@ export default function ResetPassword() {
   const [tokenError, setTokenError] = useState(false);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
     if (!token) {
       setTokenError(true);
     }

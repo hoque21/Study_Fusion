@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import {
@@ -15,12 +15,7 @@ import {
   FaStickyNote,
 } from "react-icons/fa";
 import { useAuth } from "../contexts/AuthContext";
-import { appointmentAPI } from "../services/api";
-
-import drRahman from "../assets/Rifat.jpg";
-import drAmir from "../assets/amir.jpg";
-import mrKarim from "../assets/Sumon.jpg";
-import msFarah from "../assets/Siraj.jpg";
+import { appointmentAPI, consultantAPI } from "../services/api";
 
 const MySwal = withReactContent(Swal);
 
@@ -36,71 +31,24 @@ const TIME_SLOTS = [
   { id: "17:00-18:00", label: "5:00 PM – 6:00 PM" },
 ];
 
-const teamMembers = [
-  {
-    name: "John",
-    role: "University Admissions Consultant",
-    address: "Study Fusion KL Office, Kuala Lumpur, Malaysia",
-    photo: drRahman,
-    fee: 50,
-    section: "Admissions",
-    experience: "12 Years Exp.",
-    available: "Sat – Thu",
-  },
-  {
-    name: "Devid",
-    role: "Visa & Migration Specialist",
-    address: "Study Fusion KL Office, Kuala Lumpur, Malaysia",
-    photo: drAmir,
-    fee: 50,
-    section: "Visa Guidance",
-    experience: "9 Years Exp.",
-    available: "Sat – Thu",
-  },
-  {
-    name: "Leo",
-    role: "Scholarship & Financial Aid Advisor",
-    address: "Study Fusion Sydney Office, Sydney, Australia",
-    photo: mrKarim,
-    fee: 50,
-    section: "Scholarships",
-    experience: "7 Years Exp.",
-    available: "Sat – Thu",
-  },
-  {
-    name: "Leano",
-    role: "Career & Pathway Counsellor",
-    address: "Study Fusion Sydney Office, Sydney, Australia",
-    photo: msFarah,
-    fee: 50,
-    section: "Career Guidance",
-    experience: "10 Years Exp.",
-    available: "Sat – Thu",
-  },
-];
-
-const sections = [
-  {
-    name: "Admissions",
+const sectionDetails = {
+  Admissions: {
     icon: <FaGraduationCap size={40} className="text-[#0B1F3A]" />,
     desc: "Guidance on university selection, applications & admission requirements",
   },
-  {
-    name: "Visa Guidance",
+  "Visa Guidance": {
     icon: <FaPassport size={40} className="text-[#0B1F3A]" />,
     desc: "Student visa applications, documentation & migration support",
   },
-  {
-    name: "Scholarships",
+  Scholarships: {
     icon: <FaHandHoldingUsd size={40} className="text-[#0B1F3A]" />,
     desc: "Scholarship search, financial aid & funding applications",
   },
-  {
-    name: "Career Guidance",
+  "Career Guidance": {
     icon: <FaRoute size={40} className="text-[#0B1F3A]" />,
     desc: "Career planning, pathway programs & personalised counselling",
   },
-];
+};
 
 const OurTeam = () => {
   const { isAuthenticated, user } = useAuth();
@@ -117,9 +65,29 @@ const OurTeam = () => {
   const [bookedSlots, setBookedSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [booking, setBooking] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [teamError, setTeamError] = useState("");
+  const [teamLoading, setTeamLoading] = useState(true);
+
+  const sections = [...new Set(teamMembers.map((member) => member.section))]
+    .filter(Boolean)
+    .map((name) => ({
+      name,
+      icon:
+        sectionDetails[name]?.icon ||
+        <FaGraduationCap size={40} className="text-[#0B1F3A]" />,
+      desc: sectionDetails[name]?.desc || `Meet our ${name} consultants.`,
+    }));
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
+    consultantAPI
+      .getAll()
+      .then((response) => setTeamMembers(response.data.consultants))
+      .catch((error) =>
+        setTeamError(error.message || "Unable to load consultants."),
+      )
+      .finally(() => setTeamLoading(false));
   }, []);
 
   const resetModal = () => {
@@ -242,8 +210,31 @@ const OurTeam = () => {
           </p>
         </motion.div>
 
+        {isAuthenticated && (
+          <div className="mb-10 flex justify-center">
+            <Link
+              to="/my-appointments"
+              className="inline-flex items-center gap-2 rounded-full border-2 border-[#0B1F3A] px-5 py-2.5 font-semibold text-[#0B1F3A] transition hover:bg-[#0B1F3A] hover:text-white"
+            >
+              <FaCalendarAlt aria-hidden="true" />
+              My Bookings
+            </Link>
+          </div>
+        )}
+
+        {teamError && (
+          <p className="mb-6 rounded-xl bg-red-50 p-4 text-red-700" role="alert">
+            {teamError}
+          </p>
+        )}
+        {teamLoading && (
+          <p className="mb-6 text-center text-[#3B5378]" role="status">
+            Loading consultants…
+          </p>
+        )}
+
         {/* Section Grid */}
-        {!selectedSection && (
+        {!selectedSection && !teamLoading && !teamError && sections.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {sections.map((section, i) => (
               <motion.div
@@ -274,6 +265,11 @@ const OurTeam = () => {
               </motion.div>
             ))}
           </div>
+        )}
+        {!teamLoading && !teamError && sections.length === 0 && (
+          <p className="rounded-xl bg-white p-8 text-center text-gray-600">
+            No consultants are available right now.
+          </p>
         )}
 
         {/* Consultant Cards */}

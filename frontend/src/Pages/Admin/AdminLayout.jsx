@@ -1,7 +1,18 @@
 import React, { useState } from "react";
 import { NavLink, useNavigate, Outlet } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { FaStar, FaUsers, FaCalendarAlt, FaEnvelope, FaSignOutAlt, FaBars, FaTimes, FaShieldAlt } from "react-icons/fa";
+import {
+  FaStar,
+  FaUsers,
+  FaCalendarAlt,
+  FaEnvelope,
+  FaSignOutAlt,
+  FaBars,
+  FaTimes,
+  FaShieldAlt,
+  FaUserTie,
+  FaUniversity,
+} from "react-icons/fa";
 import { useAdmin } from "../../contexts/AdminContext";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
@@ -10,6 +21,8 @@ const MySwal = withReactContent(Swal);
 
 const NAV_LINKS = [
   { to: "/admin/dashboard",    label: "Student Reviews", icon: <FaStar /> },
+  { to: "/admin/consultants",  label: "Consultants", icon: <FaUserTie /> },
+  { to: "/admin/universities", label: "Universities", icon: <FaUniversity /> },
   { to: "/admin/users",        label: "Users",        icon: <FaUsers /> },
   { to: "/admin/appointments", label: "Consultations", icon: <FaCalendarAlt /> },
   { to: "/admin/messages",     label: "Messages",     icon: <FaEnvelope /> },

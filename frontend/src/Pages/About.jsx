@@ -1,64 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { FaHeart, FaShieldAlt, FaStar } from "react-icons/fa";
-
-import team1 from "../assets/Rifat.jpg";
-import team2 from "../assets/amir.jpg";
-import team3 from "../assets/Sumon.jpg";
-import team4 from "../assets/Siraj.jpg";
-
-const TEAM = [
-  {
-    name: "John",
-    role: "University Admissions Consultant",
-    photo: team1,
-    experience: "12 Years Exp.",
-    tag: "Admissions",
-    office: "Kuala Lumpur Office",
-  },
-  {
-    name: "Devid",
-    role: "Visa & Migration Specialist",
-    photo: team2,
-    experience: "9 Years Exp.",
-    tag: "Visa Guidance",
-    office: "Kuala Lumpur Office",
-  },
-  {
-    name: "Leo",
-    role: "Scholarship & Financial Aid Advisor",
-    photo: team3,
-    experience: "7 Years Exp.",
-    tag: "Scholarships",
-    office: "Sydney Office",
-  },
-  {
-    name: "Leano",
-    role: "Career & Pathway Counsellor",
-    photo: team4,
-    experience: "10 Years Exp.",
-    tag: "Career Guidance",
-    office: "Sydney Office",
-  },
-];
-
-const VALUES = [
-  {
-    icon: <FaHeart className="text-4xl text-[#0B1F3A]" />,
-    title: "Personalised Care",
-    desc: "Empathy, kindness, and deep understanding in every single interaction with our students and their families.",
-  },
-  {
-    icon: <FaShieldAlt className="text-4xl text-[#0B1F3A]" />,
-    title: "Integrity",
-    desc: "Honest, transparent guidance and unwavering commitment to the highest professional and ethical standards.",
-  },
-  {
-    icon: <FaStar className="text-4xl text-[#0B1F3A]" />,
-    title: "Excellence",
-    desc: "Continuous learning and improvement across every area of admissions counselling, visas, and student support.",
-  },
-];
+import { consultantAPI } from "../services/api";
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 30 },
@@ -68,8 +10,17 @@ const fadeUp = (delay = 0) => ({
 });
 
 const About = () => {
+  const [consultants, setConsultants] = useState([]);
+  const [consultantError, setConsultantError] = useState("");
+
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
+    consultantAPI
+      .getAll()
+      .then((response) => setConsultants(response.data.consultants))
+      .catch((error) =>
+        setConsultantError(error.message || "Unable to load consultants."),
+      );
   }, []);
 
   return (
@@ -179,44 +130,6 @@ const About = () => {
           </motion.div>
         </section>
 
-        {/* Core Values */}
-        <section>
-          <motion.h2
-            className="text-3xl md:text-4xl font-extrabold text-[#0B1F3A] text-center mb-3"
-            {...fadeUp()}
-          >
-            Our Core Values
-          </motion.h2>
-          <motion.p
-            className="text-center text-[#3B5378] mb-10 max-w-lg mx-auto text-sm"
-            {...fadeUp(0.1)}
-          >
-            The principles we hold true in every student interaction and
-            every decision we make.
-          </motion.p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {VALUES.map((v, i) => (
-              <motion.div
-                key={i}
-                className="bg-white rounded-2xl shadow-lg p-7 flex flex-col items-center text-center hover:-translate-y-2 hover:shadow-2xl transition-all duration-300"
-                {...fadeUp(i * 0.15)}
-                whileHover={{ rotate: 1 }}
-              >
-                <div className="bg-[#FFF3DF] rounded-full p-4 mb-4">
-                  {v.icon}
-                </div>
-                <h4 className="text-xl font-bold text-[#0B1F3A] mb-2">
-                  {v.title}
-                </h4>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  {v.desc}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
         {/* Meet Our Consultants */}
         <section>
           <motion.h2
@@ -233,10 +146,17 @@ const About = () => {
             your study-abroad journey.
           </motion.p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {TEAM.map((member, i) => (
+          {consultantError ? (
+            <p className="text-center text-red-700" role="alert">
+              {consultantError}
+            </p>
+          ) : consultants.length === 0 ? (
+            <p className="text-center text-gray-600">No consultants to display.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {consultants.map((member, i) => (
               <motion.div
-                key={member.name}
+                key={member.id}
                 className="bg-white rounded-2xl shadow-lg overflow-hidden border border-[#E2E8F0] flex flex-col hover:-translate-y-2 hover:shadow-2xl transition-all duration-300"
                 {...fadeUp(i * 0.12)}
               >
@@ -250,7 +170,7 @@ const About = () => {
                     transition={{ duration: 0.4 }}
                   />
                   <div className="absolute bottom-3 left-3 bg-[#0B1F3A]/85 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full backdrop-blur-sm">
-                    {member.tag}
+                    {member.tag || member.section}
                   </div>
                 </div>
 
@@ -267,7 +187,7 @@ const About = () => {
                       <span>⏳</span> {member.experience}
                     </p>
                     <p className="flex items-center gap-1.5">
-                      <span>📅</span> Available: Sat – Thu
+                      <span>📅</span> Available: {member.available}
                     </p>
                     <p className="flex items-center gap-1.5">
                       <span>🏢</span> {member.office}
@@ -276,7 +196,8 @@ const About = () => {
                 </div>
               </motion.div>
             ))}
-          </div>
+            </div>
+          )}
         </section>
       </div>
     </div>

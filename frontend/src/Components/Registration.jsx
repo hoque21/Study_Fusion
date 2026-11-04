@@ -86,6 +86,8 @@ const Registration = () => {
   const [showConfirm, setShowConfirm] = useState(false);
   const [errors, setErrors] = useState({});
   const [passportFile, setPassportFile] = useState(null);
+  const [supportingFiles, setSupportingFiles] = useState([]);
+  const [supportingFilesError, setSupportingFilesError] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -106,7 +108,7 @@ const Registration = () => {
   /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
 
   /* ------------------------------------------------------------------------ */
@@ -218,46 +220,23 @@ const Registration = () => {
         "Enter a valid mobile number (e.g. 01712345678).";
     }
 
-    if (!formData.sex) {
-      newErrors.sex = "Please select your gender.";
-    }
-
-    if (!formData.age) {
-      newErrors.age = "Age is required.";
-    } else if (
-      Number(formData.age) < 5 ||
-      Number(formData.age) > 120
+    if (
+      formData.age &&
+      (Number(formData.age) < 5 || Number(formData.age) > 120)
     ) {
       newErrors.age = "Age must be between 5 and 120.";
     }
 
     /* Passport */
 
-    if (!formData.passportNumber.trim()) {
-      newErrors.passportNumber = "Passport number is required.";
-    } else if (
+    if (
+      formData.passportNumber.trim() &&
       !/^[A-Za-z0-9]{6,20}$/.test(
         formData.passportNumber.replace(/\s/g, "")
       )
     ) {
       newErrors.passportNumber =
         "Enter a valid passport number.";
-    }
-
-    if (!passportFile) {
-      newErrors.passportFile = "Please upload a copy of your passport.";
-    }
-
-    /* Study preferences */
-
-    if (!formData.interestedUniversity.trim()) {
-      newErrors.interestedUniversity =
-        "Please enter your interested university.";
-    }
-
-    if (!formData.interestedCourse.trim()) {
-      newErrors.interestedCourse =
-        "Please enter your interested course.";
     }
 
     /* Password */
@@ -280,13 +259,27 @@ const Registration = () => {
 
     /* Address */
 
-    if (!formData.address.trim()) {
-      newErrors.address = "Address is required.";
-    }
-
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSupportingFiles = (event) => {
+    const files = Array.from(event.target.files || []);
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+    const invalidFile = files.find(
+      (file) =>
+        !allowedTypes.includes(file.type) || file.size > 5 * 1024 * 1024,
+    );
+    if (invalidFile) {
+      setSupportingFilesError(
+        "Each document must be a PDF, JPG, or PNG smaller than 5 MB.",
+      );
+      event.target.value = "";
+      return;
+    }
+    setSupportingFiles(files);
+    setSupportingFilesError("");
   };
 
   /* ------------------------------------------------------------------------ */
@@ -311,7 +304,7 @@ const Registration = () => {
     if (!validateForm()) {
       window.scrollTo({
         top: 0,
-        behavior: "smooth",
+        behavior: "instant",
       });
 
       return;
@@ -329,12 +322,37 @@ const Registration = () => {
       if (passportFile) {
         submissionData.append("passportFile", passportFile);
       }
+      submissionData.append(
+        "supportingDocuments",
+        JSON.stringify(
+          supportingFiles.map(({ name, type, size }) => ({
+            name,
+            type,
+            size,
+          })),
+        ),
+      );
 
       await register(submissionData);
 
       await MySwal.fire({
-        title: `Welcome, ${formData.name.trim()}! 🎉`,
-        text: "Your demo profile has been saved in this browser. Please log in to continue.",
+        title: "Congratulations! Your registration is complete.",
+        html: (
+          <div className="space-y-3 text-left">
+            <p className="text-sm text-slate-600">
+              Email preview for <strong>{formData.email}</strong>
+            </p>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-slate-700">
+              <p className="font-bold text-[#0B1F3A]">
+                Subject: Congratulations, {formData.name.trim()}!
+              </p>
+              <p className="mt-2">Welcome to Study Fusion. Your student profile has been created. You can now sign in and explore your study-abroad options.</p>
+            </div>
+            <p className="text-xs text-slate-500">
+              This frontend demo displays an email preview only; it does not send an email.
+            </p>
+          </div>
+        ),
         icon: "success",
         iconColor: "#F5A623",
         background: "#FFF7E8",
@@ -511,7 +529,6 @@ const Registration = () => {
 
             <Field
               label="Gender"
-              required
               error={errors.sex}
             >
               <select
@@ -532,7 +549,6 @@ const Registration = () => {
 
             <Field
               label="Age"
-              required
               error={errors.age}
             >
               <input
@@ -553,7 +569,6 @@ const Registration = () => {
             <div className="sm:col-span-2">
               <Field
                 label="Current Address"
-                required
                 error={errors.address}
               >
                 <textarea
@@ -579,7 +594,7 @@ const Registration = () => {
           <SectionHeader
             number="2"
             title="Passport Details"
-            description="Your passport information helps us prepare your application."
+            description="Optional. Add these details now or provide them later when you need application support."
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -587,9 +602,8 @@ const Registration = () => {
 
             <Field
               label="Passport Number"
-              required
               error={errors.passportNumber}
-              hint="Enter the passport number exactly as shown on your passport."
+              hint="Optional. Leave blank if you do not want to provide it yet."
             >
               <input
                 type="text"
@@ -610,9 +624,8 @@ const Registration = () => {
 
             <Field
               label="Upload Passport"
-              required
               error={errors.passportFile}
-              hint="PDF, JPG or PNG — maximum 5MB."
+              hint="Optional. PDF, JPG or PNG — maximum 5MB. Files are not securely uploaded in this frontend demo."
             >
               {!passportFile ? (
                 <label
@@ -679,6 +692,34 @@ const Registration = () => {
             </Field>
           </div>
 
+          <div className="mt-4">
+            <Field
+              label="Other Supporting Documents"
+              error={supportingFilesError}
+              hint="Optional. Select PDF, JPG or PNG files up to 5 MB each. This frontend demo records filenames only; file contents are not uploaded."
+            >
+              <input
+                type="file"
+                id="supportingDocuments"
+                aria-label="Other Supporting Documents"
+                accept=".pdf,.jpg,.jpeg,.png"
+                multiple
+                onChange={handleSupportingFiles}
+                disabled={loading}
+                className={inputClass("supportingDocuments", errors)}
+              />
+              {supportingFiles.length > 0 && (
+                <ul className="mt-2 space-y-1 text-xs text-[#3B5378]">
+                  {supportingFiles.map((file) => (
+                    <li key={`${file.name}-${file.size}`}>
+                      {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Field>
+          </div>
+
           {/* ---------------------------------------------------------------- */}
           {/* SECTION 3 - STUDY PREFERENCES                                    */}
           {/* ---------------------------------------------------------------- */}
@@ -686,7 +727,7 @@ const Registration = () => {
           <SectionHeader
             number="3"
             title="Study Preferences"
-            description="Tell us where and what you are interested in studying."
+            description="Optional. You can add or update your study interests later."
           />
 
           <div className="space-y-4">
@@ -694,7 +735,6 @@ const Registration = () => {
 
             <Field
               label="Interested University"
-              required
               error={errors.interestedUniversity}
               hint="If you are not sure yet, enter your preferred university or write 'Not sure'."
             >
@@ -716,7 +756,6 @@ const Registration = () => {
 
             <Field
               label="Interested Course / Program"
-              required
               error={errors.interestedCourse}
               hint="Enter the degree or program you are interested in."
             >
@@ -859,9 +898,9 @@ const Registration = () => {
           <div className="rounded-xl bg-[#F5F8FC] border border-[#DCE5F0] px-4 py-3">
             <p className="text-xs leading-relaxed text-[#3B5378]">
               This frontend demo stores profile details in this browser
-              only. The selected passport file is not uploaded; only its
-              filename and file details are kept locally. Do not enter real
-              personal information.
+              only. Selected documents are not uploaded; only filenames and
+              file details are kept locally. Registration email is a preview,
+              not a real email. Do not enter real personal information.
             </p>
           </div>
 

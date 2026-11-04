@@ -1,156 +1,284 @@
-import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { FaGlobe, FaPassport, FaHandHoldingUsd, FaGraduationCap } from "react-icons/fa";
-import counselingImg from "../assets/Hero.jpg";
+import React, { useEffect } from "react";
 
-const initialResearchHighlights = [
-  {
-    title: "Global Education Trends",
-    description:
-      "Tracking university rankings, program changes, and admission trends across Malaysia & Australia.",
-    icon: <FaGlobe className="text-[#0B1F3A] w-10 h-10" />,
-  },
-  {
-    title: "Visa & Policy Research",
-    description:
-      "Monitoring visa policy changes and migration requirements to keep our guidance accurate and current.",
-    icon: <FaPassport className="text-[#0B1F3A] w-10 h-10" />,
-  },
-  {
-    title: "Scholarship & Funding Analysis",
-    description:
-      "Researching scholarship opportunities and funding options to help students study affordably.",
-    icon: <FaHandHoldingUsd className="text-[#0B1F3A] w-10 h-10" />,
-  },
-  {
-    title: "Student Success Studies",
-    description:
-      "Studying what helps students settle in, perform well, and graduate on time abroad.",
-    icon: <FaGraduationCap className="text-[#0B1F3A] w-10 h-10" />,
-  },
+const studyLevels = ["Diploma", "Bachelor's (BSc)", "Master's (MSc)", "PhD"];
+
+const malaysiaAdmissionDocuments = [
+  ["Valid passport", "✓", "✓", "✓", "✓"],
+  ["Passport-size photograph", "✓", "✓", "✓", "✓"],
+  ["SSC certificate & transcript", "✓", "✓", "✓", "✓"],
+  ["HSC certificate & transcript", "✓", "✓", "✓", "✓"],
+  ["Bachelor's certificate", "–", "–", "✓", "✓"],
+  ["Bachelor's transcript", "–", "–", "✓", "✓"],
+  ["Master's certificate", "–", "–", "–", "✓"],
+  ["Master's transcript", "–", "–", "–", "✓"],
+  ["IELTS / English proficiency", "✓*", "✓*", "✓*", "✓*"],
+  ["Updated CV / Resume", "–", "–", "✓*", "✓"],
+  ["Research proposal", "–", "–", "✓*", "✓"],
+  ["Recommendation letters", "–", "–", "✓*", "✓*"],
+  ["Work experience certificate", "–", "–", "✓*", "✓*"],
+  ["Bank statement / financial proof", "As requested", "As requested", "As requested", "As requested"],
+  ["Application form", "✓", "✓", "✓", "✓"],
 ];
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: (i) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.2, duration: 0.6, type: "spring", stiffness: 100 },
-  }),
-};
+const malaysiaVisaDocuments = [
+  ["University offer letter", "Required"],
+  ["Passport copy", "Required"],
+  ["Passport-size photograph (white background)", "Required"],
+  ["Academic certificates and transcripts", "Required"],
+  ["English proficiency certificate", "Required for applicable applicants"],
+  ["Health declaration / medical examination", "Required as applicable"],
+  ["Student visa application documents", "Required"],
+  ["Personal Bond", "Required through institution"],
+  ["Health insurance", "Required"],
+  ["Bank statement", "Not a universal EMGS requirement; may be requested by university or for sponsorship purposes"],
+];
+
+const australiaAdmissionDocuments = [
+  ["Valid passport", "✓", "✓", "✓", "✓"],
+  ["Passport-size photograph", "✓", "✓", "✓", "✓"],
+  ["SSC certificate & transcript", "✓", "✓", "✓", "✓"],
+  ["HSC certificate & transcript", "✓", "✓", "✓", "✓"],
+  ["Bachelor's certificate", "–", "–", "✓", "✓"],
+  ["Bachelor's transcript", "–", "–", "✓", "✓"],
+  ["Master's certificate", "–", "–", "–", "✓"],
+  ["Master's transcript", "–", "–", "–", "✓"],
+  ["IELTS / PTE / accepted English test", "✓*", "✓*", "✓*", "✓*"],
+  ["Updated CV / Resume", "–", "–", "✓*", "✓"],
+  ["Statement of Purpose / Personal Statement", "✓*", "✓*", "✓*", "✓*"],
+  ["Research proposal", "–", "–", "✓*", "✓"],
+  ["Recommendation letters", "–", "–", "✓*", "✓"],
+  ["Work experience certificate", "–", "–", "✓*", "✓*"],
+  ["Portfolio (if applicable)", "✓*", "✓*", "✓*", "–"],
+  ["Bank statement / financial documents", "Visa stage", "Visa stage", "Visa stage", "Visa stage"],
+];
+
+const australiaVisaDocuments = [
+  ["Valid passport", "Required"],
+  ["Confirmation of Enrolment (CoE)", "Required"],
+  ["University offer letter", "Needed before CoE"],
+  ["Academic certificates and transcripts", "As requested"],
+  ["English proficiency evidence", "If required"],
+  ["Genuine Student (GS) responses", "Required"],
+  ["Bank statement / financial capacity evidence", "If required by checklist"],
+  ["Sponsor's financial documents", "If relying on sponsor"],
+  ["Sponsor's income evidence", "If applicable"],
+  ["Overseas Student Health Cover (OSHC)", "Required"],
+  ["Health examination", "If requested"],
+  ["Police clearance / character documents", "If requested"],
+  ["Family relationship documents", "If dependants are included"],
+];
+
+const preparationDocuments = [
+  "National ID card or birth certificate.",
+  "All academic certificates and transcripts.",
+  "English translations of documents, if necessary.",
+  "Updated CV.",
+  "Passport (preferably with sufficient validity).",
+  "IELTS / PTE / TOEFL result, if applicable.",
+  "Sponsor's NID and passport copy, if applicable.",
+  "Sponsor's bank statement and bank solvency certificate, if applicable.",
+  "Sponsor's income certificate or employment documents.",
+  "Passport-size photographs.",
+];
+
+function Table({ headers, rows, label }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+      <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+        <caption className="sr-only">{label}</caption>
+        <thead className="bg-[#0B1F3A] text-white">
+          <tr>
+            {headers.map((header) => (
+              <th className="px-4 py-3 font-semibold" key={header} scope="col">
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-200">
+          {rows.map((row) => (
+            <tr className="even:bg-slate-50" key={row[0]}>
+              {row.map((cell, index) => (
+                <td
+                  className={`px-4 py-3 align-top ${index === 0 ? "font-medium text-slate-900" : "text-slate-700"}`}
+                  key={`${row[0]}-${index}`}
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AdmissionTable({ rows, label }) {
+  return (
+    <Table
+      headers={["Documents", ...studyLevels]}
+      rows={rows}
+      label={label}
+    />
+  );
+}
+
+function RequirementTable({ rows, label }) {
+  return <Table headers={["Documents", "Requirement"]} rows={rows} label={label} />;
+}
+
+function SectionHeading({ children, id }) {
+  return (
+    <h2 id={id} className="mb-5 text-2xl font-bold text-[#0B1F3A] sm:text-3xl">
+      {children}
+    </h2>
+  );
+}
 
 const Research = () => {
-  const [researchHighlights, setResearchHighlights] = useState(initialResearchHighlights);
-
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
 
-  const reloadResearch = () => {
-    const shuffled = [...researchHighlights].sort(() => Math.random() - 0.5);
-    setResearchHighlights(shuffled);
-  };
-
   return (
-    <div className="min-h-screen bg-white px-4 py-16">
-      {/* ---------- RESEARCH SECTION ---------- */}
-      <div className="max-w-6xl mx-auto text-center">
-        <motion.h2
-          className="text-4xl font-bold text-[#0B1F3A] mb-8"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          Research at Study Fusion
-        </motion.h2>
-
-        <motion.p
-          className="text-gray-700 text-lg mb-12 max-w-3xl mx-auto"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-        >
-          Study Fusion conducts ongoing research into university admissions, visa policy, and
-          scholarship opportunities across Malaysia &amp; Australia. Our research keeps our
-          guidance accurate, current, and genuinely useful for every student we advise.
-        </motion.p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {researchHighlights.map((item, index) => (
-            <motion.div
-              key={index}
-              className="bg-[#F5F8FC] rounded-xl shadow-lg p-6 text-left cursor-pointer transform transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
-              custom={index}
-              initial="hidden"
-              animate="visible"
-              variants={cardVariants}
-            >
-              <div className="flex items-center mb-4">
-                <div className="bg-white p-3 rounded-full shadow-md mr-4">
-                  {item.icon}
-                </div>
-                <h3 className="text-xl font-semibold text-[#0B1F3A]">{item.title}</h3>
-              </div>
-              <p className="text-gray-700">{item.description}</p>
-            </motion.div>
-          ))}
-        </div>
-
-        <motion.div
-          className="mt-12 flex justify-center gap-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-        >
-          <button
-            className="bg-gradient-to-r from-[#F5A623] to-[#FFC15E] text-[#0B1F3A] px-6 py-3 rounded-full font-semibold hover:shadow-md transition shadow-lg"
-            onClick={() => alert("Coming soon: Full Research Details Page!")}
-          >
-            See Full Research Details
-          </button>
-          <button
-            className="bg-[#0B1F3A] text-white px-6 py-3 rounded-full font-semibold hover:bg-[#16324F] transition shadow-lg"
-            onClick={reloadResearch}
-          >
-            Reload Highlights
-          </button>
-        </motion.div>
-      </div>
-
-      {/* ---------- COUNSELING SECTION ---------- */}
-      <section className="flex flex-col md:flex-row items-center justify-between py-16 px-8 md:px-20 bg-white mt-24">
-        {/* Left Content */}
-        <div className="md:w-1/2 space-y-6">
-          <h2 className="text-[#F5A623] text-2xl font-semibold">
-            Study &amp; Career Counseling
-          </h2>
-          <h3 className="text-[#0B1F3A] text-xl font-bold">
-            Guidance for Every Student
-          </h3>
-          <p className="text-gray-600 leading-relaxed">
-            Looking for expert guidance on studying abroad? <strong>Study Fusion</strong> is
-            your one-stop solution. We offer both face-to-face and online consultations, with a
-            multidisciplinary team of consultants ready to support you with admissions, visas,
-            and scholarships. Whether you're just exploring options or ready to apply, our
-            dedicated advisors ensure every student gets the guidance they need, wherever they
-            are.
+    <main className="min-h-screen bg-slate-50 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-12 rounded-2xl bg-[#0B1F3A] px-6 py-10 text-white sm:px-10">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#FFC15E]">
+            Study Fusion Resources
           </p>
+          <h1 className="mb-4 text-3xl font-bold sm:text-4xl">
+            Required Documents for International Students – Malaysia &amp; Australia
+          </h1>
+          <p className="max-w-4xl text-base leading-7 text-slate-200 sm:text-lg">
+            Below is a document checklist for Bangladeshi students planning to study in
+            Malaysia or Australia, covering Diploma, Bachelor&apos;s, Master&apos;s and PhD
+            programmes. University admission documents are listed separately from student
+            visa documents because they are not always the same.
+          </p>
+        </header>
 
-          <button className="bg-[#0B1F3A] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#16324F] transition duration-300 flex items-center gap-2">
-            View Consultants <span className="text-lg">→</span>
-          </button>
-        </div>
+        <div className="space-y-14">
+          <section aria-labelledby="malaysia-heading">
+            <SectionHeading id="malaysia-heading">1. Malaysia – Required documents</SectionHeading>
+            <div className="space-y-10">
+              <div>
+                <h3 className="mb-4 text-xl font-semibold text-[#0B1F3A]">
+                  International student admission
+                </h3>
+                <AdmissionTable
+                  rows={malaysiaAdmissionDocuments}
+                  label="Malaysia international student admission documents by study level"
+                />
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Note: ✓ means required depending on the university, programme or admission
+                  conditions. For PhD applications, a research proposal, academic references
+                  and previous research experience can be particularly important.
+                </p>
+              </div>
 
-        {/* Right Image */}
-        <div className="md:w-1/2 mt-10 md:mt-0 flex justify-center">
-          <img
-            src={counselingImg}
-            alt="Counseling session"
-            className="rounded-2xl shadow-lg max-w-full md:max-w-md"
-          />
+              <div>
+                <h3 className="mb-4 text-xl font-semibold text-[#0B1F3A]">
+                  Malaysia student visa (EMGS) documents
+                </h3>
+                <RequirementTable
+                  rows={malaysiaVisaDocuments}
+                  label="Malaysia student visa (EMGS) documents and requirements"
+                />
+                <p className="mt-3 text-sm text-slate-600">
+                  Sources:{" "}
+                  <a
+                    className="font-medium text-blue-700 underline underline-offset-2"
+                    href="https://visa.educationmalaysia.gov.my/guidelines/required-documents"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    EMGS – Required Documents
+                  </a>{" "}
+                  and{" "}
+                  <a
+                    className="font-medium text-blue-700 underline underline-offset-2"
+                    href="https://www.imi.gov.my/index.php/en/main-services/pass/student-pass/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Malaysia Immigration – Student Pass
+                  </a>
+                  .
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section aria-labelledby="australia-heading">
+            <SectionHeading id="australia-heading">2. Australia – Required documents</SectionHeading>
+            <div className="space-y-10">
+              <div>
+                <h3 className="mb-4 text-xl font-semibold text-[#0B1F3A]">
+                  International student admission
+                </h3>
+                <AdmissionTable
+                  rows={australiaAdmissionDocuments}
+                  label="Australia international student admission documents by study level"
+                />
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  *Admission requirements vary by institution and programme. Some universities
+                  may accept alternative English qualifications or grant exemptions.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="mb-4 text-xl font-semibold text-[#0B1F3A]">
+                  Australia student visa (Subclass 500) documents
+                </h3>
+                <RequirementTable
+                  rows={australiaVisaDocuments}
+                  label="Australia student visa Subclass 500 documents and requirements"
+                />
+                <p className="mt-3 text-sm text-slate-600">
+                  Sources:{" "}
+                  <a
+                    className="font-medium text-blue-700 underline underline-offset-2"
+                    href="https://immi.homeaffairs.gov.au/visas/getting-a-visa/visa-listing/student-500"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Australian Department of Home Affairs – Student Visa Subclass 500
+                  </a>{" "}
+                  and{" "}
+                  <a
+                    className="font-medium text-blue-700 underline underline-offset-2"
+                    href="https://immi.homeaffairs.gov.au/visas/web-evidentiary-tool"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Document Checklist Tool
+                  </a>
+                  .
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section aria-labelledby="additional-heading">
+            <SectionHeading id="additional-heading">
+              3. Additional documents students should prepare
+            </SectionHeading>
+            <p className="mb-5 leading-7 text-slate-700">
+              For Bangladeshi applicants, we recommend preparing these documents in advance:
+            </p>
+            <ol className="list-decimal space-y-3 rounded-xl border border-slate-200 bg-white p-6 pl-12 text-slate-700 shadow-sm sm:p-8 sm:pl-14">
+              {preparationDocuments.map((document) => (
+                <li className="pl-1 leading-6" key={document}>
+                  {document}
+                </li>
+              ))}
+            </ol>
+          </section>
         </div>
-      </section>
-    </div>
+      </div>
+    </main>
   );
 };
 

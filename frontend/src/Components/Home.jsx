@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
@@ -18,13 +18,14 @@ import {
 } from "react-icons/fa";
 
 import { useAuth } from "../contexts/AuthContext";
-import { appointmentAPI, reviewAPI } from "../services/api";
+import {
+  appointmentAPI,
+  consultantAPI,
+  reviewAPI,
+} from "../services/api";
+import { resizeImage } from "../utils/resizeImage";
 
 import heroImg from "../assets/service.jpg";
-import team1 from "../assets/Rifat.jpg";
-import team2 from "../assets/amir.jpg";
-import team3 from "../assets/Sumon.jpg";
-import team4 from "../assets/Siraj.jpg";
 
 const MySwal = withReactContent(Swal);
 
@@ -57,45 +58,6 @@ const TIME_SLOTS = [
   { id: "15:00-16:00", label: "3:00 PM – 4:00 PM" },
   { id: "16:00-17:00", label: "4:00 PM – 5:00 PM" },
   { id: "17:00-18:00", label: "5:00 PM – 6:00 PM" },
-];
-
-const TEAM = [
-  {
-    name: "John",
-    role: "University Admissions Consultant",
-    photo: team1,
-    fee: 50,
-    experience: "12 Years Exp.",
-    available: "Sat – Thu",
-    tag: "Admissions",
-  },
-  {
-    name: "Devid",
-    role: "Visa & Migration Specialist",
-    photo: team2,
-    fee: 50,
-    experience: "9 Years Exp.",
-    available: "Sat – Thu",
-    tag: "Visa Guidance",
-  },
-  {
-    name: "Leo",
-    role: "Scholarship & Financial Aid Advisor",
-    photo: team3,
-    fee: 50,
-    experience: "7 Years Exp.",
-    available: "Sat – Thu",
-    tag: "Scholarships",
-  },
-  {
-    name: "Leano",
-    role: "Career & Pathway Counsellor",
-    photo: team4,
-    fee: 50,
-    experience: "10 Years Exp.",
-    available: "Sat – Thu",
-    tag: "Career Guidance",
-  },
 ];
 
 const VALUES = [
@@ -147,7 +109,7 @@ const FAQS = [
   },
   {
     q: "Can I cancel or reschedule?",
-    a: "Yes — log in, go to My Consultations, and cancel any upcoming session. Contact us directly to reschedule.",
+    a: "Yes — log in, go to     My Bookings, and cancel any upcoming session. Contact us directly to reschedule.",
   },
   {
     q: "Do you help with both Malaysia and Australia applications?",
@@ -237,11 +199,16 @@ const Home = () => {
   const [booking, setBooking] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [reviewPage, setReviewPage] = useState(0);
-  const reviewTouchStart = useRef(null);
   const reviewsPerPage = 3;
   const reviewPageCount = Math.ceil(reviews.length / reviewsPerPage);
   const [reviewLoading, setReviewLoading] = useState(true);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewPhoto, setReviewPhoto] = useState("");
+  const [reviewPhotoError, setReviewPhotoError] = useState("");
+  const [consultants, setConsultants] = useState([]);
+  const [consultantError, setConsultantError] = useState("");
+  const isReviewUserAuthenticated = Boolean(user);
   const [reviewForm, setReviewForm] = useState({
     name: "",
     university: "",
@@ -251,13 +218,13 @@ const Home = () => {
   });
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
 
   useEffect(() => {
     let active = true;
     reviewAPI
-      .getAll()
+      .getPublic()
       .then((response) => {
         if (active) setReviews(response.data.reviews);
       })
@@ -278,18 +245,50 @@ const Home = () => {
     };
   }, []);
 
+  useEffect(() => {
+    consultantAPI
+      .getAll()
+      .then((response) => setConsultants(response.data.consultants))
+      .catch((error) =>
+        setConsultantError(error.message || "Unable to load consultants."),
+      );
+  }, []);
+
+  useEffect(() => {
+    if (reviewPageCount < 2) {
+      setReviewPage(0);
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setReviewPage((current) => (current + 1) % reviewPageCount);
+    }, 5000);
+    return () => window.clearInterval(intervalId);
+  }, [reviewPageCount]);
+
   const handleReviewChange = (event) => {
     const { name, value } = event.target;
     setReviewForm((current) => ({ ...current, [name]: value }));
   };
 
+  const handleReviewPhotoChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setReviewPhotoError("");
+    try {
+      setReviewPhoto(await resizeImage(file));
+    } catch (error) {
+      setReviewPhotoError(error.message);
+      event.target.value = "";
+    }
+  };
+
   const handleReviewSubmit = async (event) => {
     event.preventDefault();
+    if (!isReviewUserAuthenticated) return;
     setReviewSubmitting(true);
     try {
-      const response = await reviewAPI.submit(reviewForm);
-      setReviews((current) => [response.data.review, ...current]);
-      setReviewPage(0);
+      await reviewAPI.submit({ ...reviewForm, photo: reviewPhoto });
       setReviewForm({
         name: "",
         university: "",
@@ -297,9 +296,12 @@ const Home = () => {
         comment: "",
         rating: 5,
       });
+      setReviewPhoto("");
+      setReviewPhotoError("");
+      setShowReviewForm(false);
       await MySwal.fire({
-        title: "Review Added",
-        text: "Your review has been saved in this browser.",
+        title: "Review Submitted",
+        text: "Your review is waiting for admin approval. Once approved, it will appear on the website.",
         icon: "success",
         iconColor: GOLD,
         background: GOLD_TINT,
@@ -318,24 +320,6 @@ const Home = () => {
     } finally {
       setReviewSubmitting(false);
     }
-  };
-
-  const changeReviewPage = (direction) => {
-    setReviewPage((current) =>
-      Math.max(0, Math.min(reviewPageCount - 1, current + direction)),
-    );
-  };
-
-  const handleReviewTouchStart = (event) => {
-    reviewTouchStart.current = event.changedTouches[0].clientX;
-  };
-
-  const handleReviewTouchEnd = (event) => {
-    if (reviewTouchStart.current === null) return;
-    const distance = event.changedTouches[0].clientX - reviewTouchStart.current;
-    reviewTouchStart.current = null;
-    if (Math.abs(distance) < 50) return;
-    changeReviewPage(distance < 0 ? 1 : -1);
   };
 
   /* ── modal helpers ────────────────────────────────────────────────────── */
@@ -458,6 +442,11 @@ const Home = () => {
   };
 
   const availableCount = TIME_SLOTS.length - bookedSlots.length;
+  const displayStats = STATS.map((stat) =>
+    stat.label === "Expert Consultants"
+      ? { ...stat, num: String(consultants.length) }
+      : stat,
+  );
 
   /* ══════════════════════════════════════════════════════════════════════════
      RENDER
@@ -560,7 +549,7 @@ const Home = () => {
       {/* ── STATS STRIP ──────────────────────────────────────────────────── */}
       <div className="bg-[#0B1F3A] text-white py-10">
         <div className="max-w-5xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {STATS.map((s, i) => (
+          {displayStats.map((s, i) => (
             <motion.div
               key={i}
               initial={{ opacity: 0, y: 20 }}
@@ -782,19 +771,21 @@ const Home = () => {
                 below to book your session.
               </p>
               <Link to="/my-appointments">
-                <motion.button
-                  whileHover={{ scale: 1.04 }}
-                  className="text-[#0B1F3A] border border-[#B9C4D4] text-sm font-semibold px-4 py-1.5 rounded-full hover:bg-[#F5F8FC] transition"
-                >
-                  📋 My Consultations
-                </motion.button>
+                <span className="inline-flex rounded-full border border-[#B9C4D4] px-4 py-1.5 text-sm font-semibold text-[#0B1F3A] transition hover:bg-[#F5F8FC]">
+                  📋 My Bookings
+                </span>
               </Link>
             </motion.div>
           )}
 
           {/* team cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-2">
-            {TEAM.map((member, i) => (
+            {consultantError && (
+              <p className="col-span-full rounded-xl bg-red-50 p-4 text-red-700" role="alert">
+                {consultantError}
+              </p>
+            )}
+            {consultants.map((member, i) => (
               <motion.div
                 key={member.name}
                 className="bg-white rounded-2xl shadow-lg overflow-hidden border border-[#E2E8F0] flex flex-col hover:-translate-y-2 hover:shadow-2xl transition-all duration-300"
@@ -873,10 +864,43 @@ const Home = () => {
             <p className="text-[#3B5378] max-w-xl mx-auto text-sm md:text-base">
               Share your university journey and help other students make informed choices.
             </p>
+            <button
+              type="button"
+              onClick={() => {
+                if (!isReviewUserAuthenticated) {
+                  MySwal.fire({
+                    title: "Login Required",
+                    text: "Please log in before submitting a student review.",
+                    icon: "info",
+                    showCancelButton: true,
+                    confirmButtonText: "Go to Login",
+                    cancelButtonText: "Cancel",
+                    confirmButtonColor: INK,
+                  }).then((result) => {
+                    if (result.isConfirmed) navigate("/login");
+                  });
+                  return;
+                }
+                setShowReviewForm((visible) => !visible);
+              }}
+              aria-expanded={showReviewForm}
+              aria-controls="student-review-form"
+              className="mt-5 rounded-full bg-gradient-to-r from-[#F5A623] to-[#FFC15E] px-6 py-3 font-bold text-[#0B1F3A] shadow hover:shadow-md"
+            >
+              {!isReviewUserAuthenticated
+                ? "Log in to Write a Review"
+                : showReviewForm
+                  ? "Close Review Form"
+                  : "Write a Review"}
+            </button>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+          <div
+            className={`grid grid-cols-1 ${showReviewForm ? "lg:grid-cols-5" : ""} gap-8 items-start`}
+          >
+            {showReviewForm && (
             <form
+              id="student-review-form"
               onSubmit={handleReviewSubmit}
               className="lg:col-span-2 bg-white rounded-2xl shadow-lg border border-[#E2E8F0] p-6 space-y-4"
             >
@@ -984,59 +1008,73 @@ const Home = () => {
                   className="w-full px-4 py-2.5 rounded-xl border border-[#DCE6F2] focus:outline-none focus:ring-2 focus:ring-[#F5A623]/50 resize-y"
                 />
               </div>
+              <div>
+                <label
+                  htmlFor="review-photo"
+                  className="block text-sm font-semibold text-[#0B1F3A] mb-1"
+                >
+                  Profile picture (optional)
+                </label>
+                <input
+                  id="review-photo"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleReviewPhotoChange}
+                  className="w-full rounded-xl border border-[#DCE6F2] px-4 py-2.5 text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Image is resized before saving (maximum upload: 5 MB).
+                </p>
+                {reviewPhotoError && (
+                  <p className="mt-1 text-sm text-red-700" role="alert">
+                    {reviewPhotoError}
+                  </p>
+                )}
+                {reviewPhoto && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <img
+                      src={reviewPhoto}
+                      alt="Review profile preview"
+                      className="h-14 w-14 rounded-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setReviewPhoto("")}
+                      className="text-sm font-semibold text-red-700 underline"
+                    >
+                      Remove picture
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 type="submit"
                 disabled={reviewSubmitting}
                 className="w-full bg-gradient-to-r from-[#F5A623] to-[#FFC15E] text-[#0B1F3A] py-3 rounded-full font-bold shadow hover:shadow-md transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {reviewSubmitting ? "Adding Review..." : "Submit Review"}
+                {reviewSubmitting ? "Submitting Review..." : "Submit Review"}
               </button>
               <p className="text-xs text-gray-500">
-                Reviews are saved in this browser only and are not published to a server.
+                Your review will be published after admin approval. No account is needed.
               </p>
             </form>
+            )}
 
-            <div className="lg:col-span-3">
+            <div className={showReviewForm ? "lg:col-span-3" : ""}>
               {reviewLoading ? (
                 <p className="text-center text-[#3B5378] py-10">Loading student reviews...</p>
               ) : reviews.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-[#E2E8F0] p-8 text-center text-[#3B5378]">
-                  No student reviews yet. Be the first to share your experience.
+                  No approved student reviews yet. Be the first to share your experience.
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-sm text-[#3B5378]" aria-live="polite">
-                      Showing {reviewPage * reviewsPerPage + 1}–
-                      {Math.min((reviewPage + 1) * reviewsPerPage, reviews.length)} of{" "}
-                      {reviews.length} reviews
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => changeReviewPage(-1)}
-                        disabled={reviewPage === 0}
-                        aria-label="Previous reviews"
-                        className="w-10 h-10 rounded-full border border-[#DCE6F2] text-[#0B1F3A] hover:bg-[#FFF7E8] disabled:opacity-40 disabled:cursor-not-allowed transition"
-                      >
-                        ←
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => changeReviewPage(1)}
-                        disabled={reviewPage >= reviewPageCount - 1}
-                        aria-label="Next reviews"
-                        className="w-10 h-10 rounded-full border border-[#DCE6F2] text-[#0B1F3A] hover:bg-[#FFF7E8] disabled:opacity-40 disabled:cursor-not-allowed transition"
-                      >
-                        →
-                      </button>
-                    </div>
-                  </div>
+                  <p className="mb-4 text-center text-sm text-[#3B5378]" aria-live="polite">
+                    Reviews change automatically
+                  </p>
                   <div
-                    className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 touch-pan-y"
-                    onTouchStart={handleReviewTouchStart}
-                    onTouchEnd={handleReviewTouchEnd}
-                    aria-label="Student review pages. Swipe left or right to browse."
+                    className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                    aria-label="Student reviews, automatically rotating"
                   >
                     {reviews
                       .slice(
@@ -1051,13 +1089,20 @@ const Home = () => {
                           className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-6"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                            <div>
-                              <h3 className="text-lg font-bold text-[#0B1F3A]">
-                                {review.name}
-                              </h3>
-                              <p className="text-sm text-[#3B5378]">
-                                {review.university} · {review.course}
-                              </p>
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={review.photo || "/student-avatar.svg"}
+                                alt=""
+                                className="h-12 w-12 rounded-full border border-slate-200 object-cover"
+                              />
+                              <div>
+                                <h3 className="text-lg font-bold text-[#0B1F3A]">
+                                  {review.name}
+                                </h3>
+                                <p className="text-sm text-[#3B5378]">
+                                  {review.university} · {review.course}
+                                </p>
+                              </div>
                             </div>
                             <div
                               className="flex gap-0.5"

@@ -1,3 +1,5 @@
+import { INITIAL_CONSULTANTS, INITIAL_UNIVERSITIES } from "../data/siteContent";
+
 const STORAGE_KEY = "studyfusion_demo_data_v1";
 
 const emptyStore = () => ({
@@ -6,6 +8,14 @@ const emptyStore = () => ({
   appointments: [],
   reviews: [],
   passwordResets: [],
+  consultants: INITIAL_CONSULTANTS.map((consultant, index) => ({
+    ...consultant,
+    id: index + 1,
+  })),
+  universities: INITIAL_UNIVERSITIES.map((university, index) => ({
+    ...university,
+    id: index + 1,
+  })),
 });
 
 const readStore = () => {
@@ -33,6 +43,8 @@ const readStore = () => {
     "appointments",
     "reviews",
     "passwordResets",
+    "consultants",
+    "universities",
   ];
   if (
     collections.some(
@@ -45,7 +57,12 @@ const readStore = () => {
     );
   }
 
-  return { ...emptyStore(), ...store };
+  const mergedStore = { ...emptyStore(), ...store };
+  mergedStore.reviews = mergedStore.reviews.map((review) => ({
+    status: "approved",
+    ...review,
+  }));
+  return mergedStore;
 };
 
 const writeStore = (store) => {
@@ -272,7 +289,14 @@ export const contactAPI = {
 export const reviewAPI = {
   getAll: async () => respond({ reviews: [...readStore().reviews].reverse() }),
 
-  create: async (data) => {
+  getPublic: async () =>
+    respond({
+      reviews: [...readStore().reviews]
+        .filter((review) => review.status === "approved")
+        .reverse(),
+    }),
+
+  create: async (data, status = "approved") => {
     const name = String(data.name || "").trim();
     const university = String(data.university || "").trim();
     const course = String(data.course || "").trim();
@@ -294,6 +318,8 @@ export const reviewAPI = {
       course,
       comment,
       rating,
+      photo: String(data.photo || ""),
+      status,
       created_at: new Date().toISOString(),
     };
     store.reviews.push(review);
@@ -301,7 +327,7 @@ export const reviewAPI = {
     return respond({ review });
   },
 
-  submit: async (data) => reviewAPI.create(data),
+  submit: async (data) => reviewAPI.create(data, "pending"),
 
   update: async (id, data) => {
     const name = String(data.name || "").trim();
@@ -319,7 +345,26 @@ export const reviewAPI = {
     const store = readStore();
     const review = store.reviews.find((item) => item.id === Number(id));
     if (!review) throw createError("Review not found.", 404);
-    Object.assign(review, { name, university, course, comment, rating });
+    Object.assign(review, {
+      name,
+      university,
+      course,
+      comment,
+      rating,
+      photo: String(data.photo || review.photo || ""),
+    });
+    writeStore(store);
+    return respond({ review });
+  },
+
+  setStatus: async (id, status) => {
+    if (!["pending", "approved"].includes(status)) {
+      throw createError("Review status must be pending or approved.");
+    }
+    const store = readStore();
+    const review = store.reviews.find((item) => item.id === Number(id));
+    if (!review) throw createError("Review not found.", 404);
+    review.status = status;
     writeStore(store);
     return respond({ review });
   },
@@ -335,6 +380,145 @@ export const reviewAPI = {
     return respond({ message: "Review deleted." });
   },
 };
+
+const normalizeContent = (data, fields, label, requiredFields = fields) => {
+  const content = Object.fromEntries(
+    fields.map((field) => [field, String(data[field] || "").trim()]),
+  );
+  if (requiredFields.some((field) => !content[field])) {
+    throw createError(`Please complete the required ${label} fields.`);
+  }
+  return content;
+};
+
+const isHttpUrl = (value) => {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "https:" || protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+
+const validateContentUrls = (collection, content) => {
+  if (
+    collection === "universities" &&
+    !isHttpUrl(content.apply)
+  ) {
+    throw createError("University application URL must use HTTP or HTTPS.");
+  }
+  if (
+    collection === "universities" &&
+    content.officialSite &&
+    !isHttpUrl(content.officialSite)
+  ) {
+    throw createError("University website URL must use HTTP or HTTPS.");
+  }
+  if (
+    collection === "universities" &&
+    content.image &&
+    !(isHttpUrl(content.image) || content.image.startsWith("data:image/"))
+  ) {
+    throw createError("University photo must be a valid image URL.");
+  }
+  if (
+    collection === "consultants" &&
+    content.photo &&
+    !(
+      isHttpUrl(content.photo) ||
+      content.photo.startsWith("/assets/") ||
+      content.photo.startsWith("data:image/")
+    )
+  ) {
+    throw createError("Consultant photo must be a valid image URL.");
+  }
+};
+
+const createContentAPI = (collection, fields, label, requiredFields = fields) => ({
+  getAll: async () => respond({ [collection]: readStore()[collection] }),
+
+  create: async (data) => {
+    const store = readStore();
+    const content = normalizeContent(data, fields, label, requiredFields);
+    validateContentUrls(collection, content);
+    const item = {
+      ...content,
+      id: nextId(store[collection]),
+    };
+    if (collection === "consultants") {
+      item.fee = Number(data.fee);
+      if (!Number.isFinite(item.fee) || item.fee < 0) {
+        throw createError("Consultation fee must be a non-negative number.");
+      }
+    }
+    store[collection].push(item);
+    writeStore(store);
+    return respond({ [label]: item });
+  },
+
+  update: async (id, data) => {
+    const store = readStore();
+    const item = store[collection].find((entry) => entry.id === Number(id));
+    if (!item) throw createError(`${label} not found.`, 404);
+    const updated = normalizeContent(data, fields, label, requiredFields);
+    validateContentUrls(collection, updated);
+    if (collection === "consultants") {
+      const fee = Number(data.fee);
+      if (!Number.isFinite(fee) || fee < 0) {
+        throw createError("Consultation fee must be a non-negative number.");
+      }
+      item.fee = fee;
+    }
+    Object.assign(item, updated);
+    writeStore(store);
+    return respond({ [label]: item });
+  },
+
+  delete: async (id) => {
+    const store = readStore();
+    const initialLength = store[collection].length;
+    store[collection] = store[collection].filter(
+      (item) => item.id !== Number(id),
+    );
+    if (store[collection].length === initialLength) {
+      throw createError(`${label} not found.`, 404);
+    }
+    writeStore(store);
+    return respond({ message: `${label} deleted.` });
+  },
+});
+
+export const consultantAPI = createContentAPI(
+  "consultants",
+  [
+    "name",
+    "role",
+    "photo",
+    "section",
+    "experience",
+    "available",
+    "address",
+    "tag",
+    "office",
+  ],
+  "consultant",
+  ["name", "role"],
+);
+
+export const universityAPI = createContentAPI(
+  "universities",
+  [
+    "country",
+    "name",
+    "type",
+    "location",
+    "tuition",
+    "image",
+    "officialSite",
+    "apply",
+  ],
+  "university",
+);
 
 export const appointmentAPI = {
   getSlots: async (doctor, date) => {

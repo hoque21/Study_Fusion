@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Swal from "sweetalert2";
-import { FaExternalLinkAlt } from "react-icons/fa";
+import { FaExternalLinkAlt, FaUniversity } from "react-icons/fa";
+import { universityAPI } from "../services/api";
 
 // Workshop images
 import training1 from "../assets/Rifat.jpg";
@@ -14,188 +15,82 @@ import training4 from "../assets/Rifat.jpg";
    undergraduates and vary by programme/intake — always confirm current
    fees and entry requirements on the official portal before applying. ── */
 
-const MALAYSIA_UNIS = [
-  {
-    name: "Universiti Malaya (UM)",
-    type: "Public",
-    location: "Kuala Lumpur",
-    tuition: "~USD 3,000 – 7,000 / year",
-    apply: "https://study.um.edu.my",
-  },
-  {
-    name: "Universiti Kebangsaan Malaysia (UKM)",
-    type: "Public",
-    location: "Bangi, Selangor",
-    tuition: "~USD 2,500 – 6,000 / year",
-    apply: "https://www.ukm.my",
-  },
-  {
-    name: "Universiti Putra Malaysia (UPM)",
-    type: "Public",
-    location: "Serdang, Selangor",
-    tuition: "~USD 2,500 – 6,500 / year",
-    apply: "https://www.upm.edu.my",
-  },
-  {
-    name: "Universiti Sains Malaysia (USM)",
-    type: "Public",
-    location: "Penang",
-    tuition: "~USD 2,000 – 6,000 / year",
-    apply: "https://admission.usm.my",
-  },
-  {
-    name: "Universiti Teknologi Malaysia (UTM)",
-    type: "Public",
-    location: "Johor Bahru / KL",
-    tuition: "~USD 2,500 – 7,000 / year",
-    apply: "https://admission.utm.my",
-  },
-  {
-    name: "International Islamic University Malaysia (IIUM)",
-    type: "Public",
-    location: "Gombak, Selangor",
-    tuition: "~USD 2,500 – 6,000 / year",
-    apply: "https://www.iium.edu.my",
-  },
-  {
-    name: "Taylor's University",
-    type: "Private",
-    location: "Subang Jaya, Selangor",
-    tuition: "~USD 6,000 – 15,000 / year (higher for Medicine)",
-    apply: "https://university.taylors.edu.my",
-  },
-  {
-    name: "Sunway University",
-    type: "Private",
-    location: "Bandar Sunway, Selangor",
-    tuition: "~USD 5,000 – 12,000 / year",
-    apply: "https://sunwayuniversity.edu.my",
-  },
-  {
-    name: "Monash University Malaysia",
-    type: "Private (Australian branch campus)",
-    location: "Bandar Sunway, Selangor",
-    tuition: "~USD 6,000 – 13,000 / year",
-    apply: "https://www.monash.edu.my",
-  },
-  {
-    name: "UCSI University",
-    type: "Private",
-    location: "Kuala Lumpur",
-    tuition: "~USD 4,000 – 10,000 / year",
-    apply: "https://www.ucsiuniversity.edu.my",
-  },
-];
-
-const AUSTRALIA_UNIS = [
-  {
-    name: "University of Melbourne",
-    type: "Public (Group of Eight)",
-    location: "Melbourne, VIC",
-    tuition: "~AUD 45,000 – 52,000 / year",
-    apply: "https://study.unimelb.edu.au",
-  },
-  {
-    name: "University of Sydney",
-    type: "Public (Group of Eight)",
-    location: "Sydney, NSW",
-    tuition: "~AUD 45,000 – 58,000 / year",
-    apply: "https://www.sydney.edu.au/study",
-  },
-  {
-    name: "Australian National University (ANU)",
-    type: "Public (Group of Eight)",
-    location: "Canberra, ACT",
-    tuition: "~AUD 45,000 – 50,000 / year",
-    apply: "https://www.anu.edu.au/study",
-  },
-  {
-    name: "University of Queensland (UQ)",
-    type: "Public (Group of Eight)",
-    location: "Brisbane, QLD",
-    tuition: "~AUD 40,000 – 48,000 / year",
-    apply: "https://study.uq.edu.au",
-  },
-  {
-    name: "Monash University",
-    type: "Public (Group of Eight)",
-    location: "Melbourne, VIC",
-    tuition: "~AUD 40,000 – 49,000 / year",
-    apply: "https://www.monash.edu/study",
-  },
-  {
-    name: "UNSW Sydney",
-    type: "Public (Group of Eight)",
-    location: "Sydney, NSW",
-    tuition: "~AUD 42,000 – 52,000 / year",
-    apply: "https://www.unsw.edu.au/study",
-  },
-  {
-    name: "University of Western Australia (UWA)",
-    type: "Public (Group of Eight)",
-    location: "Perth, WA",
-    tuition: "~AUD 38,000 – 46,000 / year",
-    apply: "https://www.uwa.edu.au/study",
-  },
-  {
-    name: "University of Adelaide",
-    type: "Public (Group of Eight)",
-    location: "Adelaide, SA",
-    tuition: "~AUD 38,000 – 45,000 / year",
-    apply: "https://www.adelaide.edu.au/degree-finder",
-  },
-  {
-    name: "RMIT University",
-    type: "Public",
-    location: "Melbourne, VIC",
-    tuition: "~AUD 35,000 – 42,000 / year",
-    apply: "https://www.rmit.edu.au/study-with-us",
-  },
-  {
-    name: "University of Technology Sydney (UTS)",
-    type: "Public",
-    location: "Sydney, NSW",
-    tuition: "~AUD 36,000 – 44,000 / year",
-    apply: "https://www.uts.edu.au/future-students",
-  },
-];
-
 const UniversityCard = ({ uni, i }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
     transition={{ delay: i * 0.06, duration: 0.4 }}
-    className="bg-white rounded-2xl shadow-md border border-[#E2E8F0] p-5 flex flex-col hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
+    className="bg-white rounded-2xl shadow-md border border-[#E2E8F0] overflow-hidden flex flex-col hover:-translate-y-1 hover:shadow-xl transition-all duration-300"
   >
-    <h4 className="text-base font-bold text-[#0B1F3A] leading-snug mb-1">
-      {uni.name}
-    </h4>
-    <p className="text-xs text-[#3B5378] font-medium mb-3">
-      {uni.type} · {uni.location}
-    </p>
-    <div className="mt-auto space-y-3">
-      <div className="bg-[#F5F8FC] border border-[#DCE6F2] rounded-lg px-3 py-2">
-        <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">
-          Indicative Tuition
-        </p>
-        <p className="text-sm font-semibold text-[#0B1F3A]">{uni.tuition}</p>
-      </div>
-      <a
-        href={uni.apply}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-[#F5A623] to-[#FFC15E] text-[#0B1F3A] text-sm font-semibold py-2 rounded-full shadow hover:shadow-md transition"
+    {uni.image ? (
+      <img
+        src={uni.image}
+        alt={`${uni.name} campus`}
+        className="h-36 w-full object-cover"
+        loading="lazy"
+      />
+    ) : (
+      <div
+        className="flex h-36 w-full items-center justify-center bg-gradient-to-br from-[#EAF0FA] to-[#DCE6F2] text-[#3B5378]"
+        aria-label={`${uni.name} photo not provided`}
       >
-        Official Site &amp; Application Portal <FaExternalLinkAlt size={11} />
-      </a>
+        <FaUniversity size={42} aria-hidden="true" />
+      </div>
+    )}
+    <div className="flex flex-1 flex-col p-5">
+      <h4 className="text-base font-bold text-[#0B1F3A] leading-snug mb-1">
+        {uni.name}
+      </h4>
+      <p className="text-xs text-[#3B5378] font-medium mb-3">
+        {uni.type} · {uni.location}
+      </p>
+      <div className="mt-auto space-y-3">
+        <div className="bg-[#F5F8FC] border border-[#DCE6F2] rounded-lg px-3 py-2">
+          <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">
+            Indicative Tuition
+          </p>
+          <p className="text-sm font-semibold text-[#0B1F3A]">{uni.tuition}</p>
+        </div>
+        <div className="grid gap-2">
+          {uni.officialSite && (
+            <a
+              href={uni.officialSite}
+              target="_blank"
+              rel="noreferrer"
+              className="flex min-h-10 items-center justify-center gap-2 rounded-full border border-[#0B1F3A] px-3 py-2 text-center text-xs font-semibold leading-tight text-[#0B1F3A] transition hover:bg-[#EAF0FA]"
+            >
+              Official Website <FaExternalLinkAlt size={10} aria-hidden="true" />
+            </a>
+          )}
+          <a
+            href={uni.apply}
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#F5A623] to-[#FFC15E] px-3 py-2 text-center text-xs font-semibold leading-tight text-[#0B1F3A] shadow transition hover:shadow-md"
+          >
+            Application Portal <FaExternalLinkAlt size={10} aria-hidden="true" />
+          </a>
+        </div>
+      </div>
     </div>
   </motion.div>
 );
 
 const Training = () => {
+  const [universities, setUniversities] = useState([]);
+  const [universitiesLoading, setUniversitiesLoading] = useState(true);
+  const [universitiesError, setUniversitiesError] = useState("");
+
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
+    universityAPI
+      .getAll()
+      .then((response) => setUniversities(response.data.universities))
+      .catch((error) =>
+        setUniversitiesError(error.message || "Unable to load universities."),
+      )
+      .finally(() => setUniversitiesLoading(false));
   }, []);
 
   const trainings = [
@@ -254,6 +149,12 @@ const Training = () => {
   ];
 
   const [selectedImage, setSelectedImage] = useState(null);
+  const malaysiaUniversities = universities.filter(
+    (university) => university.country === "Malaysia",
+  );
+  const australiaUniversities = universities.filter(
+    (university) => university.country === "Australia",
+  );
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -309,11 +210,21 @@ const Training = () => {
               Partner Universities in Malaysia
             </h3>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-            {MALAYSIA_UNIS.map((uni, i) => (
+          {universitiesError ? (
+            <p className="rounded-xl bg-red-50 p-4 text-red-700" role="alert">
+              {universitiesError}
+            </p>
+          ) : universitiesLoading ? (
+            <p className="text-gray-600" role="status">Loading universities…</p>
+          ) : malaysiaUniversities.length ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+            {malaysiaUniversities.map((uni, i) => (
               <UniversityCard uni={uni} i={i} key={uni.name} />
             ))}
-          </div>
+            </div>
+          ) : (
+            <p className="text-gray-600">No Malaysian universities are listed right now.</p>
+          )}
         </div>
 
         {/* ── AUSTRALIA UNIVERSITIES ────────────────────────────────── */}
@@ -324,11 +235,15 @@ const Training = () => {
               Partner Universities in Australia
             </h3>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-            {AUSTRALIA_UNIS.map((uni, i) => (
+          {!universitiesLoading && !universitiesError && australiaUniversities.length ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+            {australiaUniversities.map((uni, i) => (
               <UniversityCard uni={uni} i={i} key={uni.name} />
             ))}
-          </div>
+            </div>
+          ) : !universitiesLoading && !universitiesError ? (
+            <p className="text-gray-600">No Australian universities are listed right now.</p>
+          ) : null}
         </div>
 
         {/* ── WORKSHOPS ──────────────────────────────────────────────── */}

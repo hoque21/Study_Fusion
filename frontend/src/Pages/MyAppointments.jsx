@@ -54,7 +54,7 @@ export default function MyAppointments() {
       navigate("/login");
       return;
     }
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
     fetchAppointments();
   }, [isAuthenticated]);
 
@@ -162,7 +162,7 @@ export default function MyAppointments() {
           </Link>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-extrabold text-[#0B1F3A]">My Consultations</h1>
+              <h1 className="text-3xl font-extrabold text-[#0B1F3A]">My Bookings</h1>
               <p className="text-[#3B5378] mt-1">
                 Welcome, {user?.name}. Track and manage your sessions.
               </p>
